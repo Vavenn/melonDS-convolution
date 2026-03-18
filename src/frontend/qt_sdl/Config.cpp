@@ -81,6 +81,8 @@ RangeList IntRanges =
     {"Screen.VSyncInterval", {1, 20}},
     {"3D.GL.ScaleFactor", {1, 16}},
     {"Audio.Interpolation", {0, 4}},
+    {"Audio.Effect", {0, 2}},
+    {"Audio.EffectWidth", {-100, 100}},
     {"Instance*.Audio.Volume", {0, 256}},
     {"Mic.InputType", {0, micInputType_MAX-1}},
     {"Instance*.Window*.ScreenRotation", {0, screenRot_MAX-1}},

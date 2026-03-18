@@ -23,6 +23,7 @@
 #include "main.h"
 
 #include "mic_blow.h"
+#include "ir_3ds_speakers.h"
 
 using namespace melonDS;
 
@@ -35,6 +36,14 @@ void EmuInstance::audioInit()
 {
     audioVolume = localCfg.GetInt("Audio.Volume");
     audioDSiVolumeSync = localCfg.GetBool("Audio.DSiVolumeSync");
+    audioEffect = globalCfg.GetInt("Audio.Effect");
+    audioEffectWidth = globalCfg.GetInt("Audio.EffectWidth");
+    audioConvIRLen = 0;
+    audioConvHistPos = 0;
+    memset(audioConvHistL, 0, sizeof(audioConvHistL));
+    memset(audioConvHistR, 0, sizeof(audioConvHistR));
+    // Load the configured IR (if any) after object is fully initialised
+    audioSetEffect(audioEffect);
 
     audioMutedToggle = false;
     audioMutedByFastForward = false;
@@ -187,6 +196,50 @@ void EmuInstance::audioCallback(void* data, Uint8* stream, int len)
         s16* samples = (s16*) stream;
         for (int i = 0; i < num_in * 2; i++)
             samples[i] = ((s32) samples[i] * inst->audioVolume) >> 8;
+    }
+
+    if (inst->audioEffect != 0) // convolution reverb (speaker body IR)
+    {
+        s16* samples = (s16*) stream;
+        const float* irL  = inst->audioConvIRL;
+        const float* irR  = inst->audioConvIRR;
+        const int    irLen = inst->audioConvIRLen;
+        float* histL = inst->audioConvHistL;
+        float* histR = inst->audioConvHistR;
+
+        for (int i = 0; i < num_in; i++)
+        {
+            // Input stereo blend: 1=stereo at w=0, 0=mono at w=±1
+            // IR blend is pre-applied by recomputeBlendedIR()
+            const float w = inst->audioEffectWidth * (1.0f / 100.0f);
+            const float inputStereo = 1.0f - (w >= 0.0f ? w : -w);
+
+            // Advance write position and store new sample in both halves
+            // of the double-buffer so the FIR window is always contiguous.
+            int p = inst->audioConvHistPos - 1;
+            if (p < 0) p = irLen - 1;
+            inst->audioConvHistPos = p;
+
+            float rawL = samples[i * 2];
+            float rawR = samples[i * 2 + 1];
+            float mid  = 0.5f * (rawL + rawR);
+            float effL = mid + inputStereo * (rawL - mid);
+            float effR = mid + inputStereo * (rawR - mid);
+            histL[p]         = effL;  histL[p + irLen] = effL;
+            histR[p]         = effR;  histR[p + irLen] = effR;
+
+            float outL = 0.0f, outR = 0.0f;
+            const float* xL = histL + p;
+            const float* xR = histR + p;
+            for (int k = 0; k < irLen; k++)
+            {
+                outL += irL[k] * xL[k];
+                outR += irR[k] * xR[k];
+            }
+
+            samples[i * 2]     = (s16)std::clamp(outL, -32768.0f, 32767.0f);
+            samples[i * 2 + 1] = (s16)std::clamp(outR, -32768.0f, 32767.0f);
+        }
     }
 
     int margin = 6;
@@ -506,8 +559,56 @@ void EmuInstance::audioUpdateSettings()
         nds->SPU.SetInterpolation(static_cast<AudioInterpolation>(audiointerp));
     }
 
+    int newEffect = globalCfg.GetInt("Audio.Effect");
+    bool effectChanged = (newEffect != audioEffect);
+    audioEffect = newEffect;
+    audioEffectWidth = globalCfg.GetInt("Audio.EffectWidth");
+    if (effectChanged)
+    {
+        audioConvHistPos = 0;
+        memset(audioConvHistL, 0, sizeof(audioConvHistL));
+        memset(audioConvHistR, 0, sizeof(audioConvHistR));
+    }
+    recomputeBlendedIR();
+
     setupMicInputData();
     if (micStarted) micOpen();
+}
+
+void EmuInstance::recomputeBlendedIR()
+{
+    if (audioEffect == 0) { audioConvIRLen = 0; return; }
+
+    const float* rawL = (audioEffect == 1) ? IR3DS::CloseL : IR3DS::FarL;
+    const float* rawR = (audioEffect == 1) ? IR3DS::CloseR : IR3DS::FarR;
+    int len = std::min((audioEffect == 1) ? IR3DS::CloseLen : IR3DS::FarLen, AudioConvMaxIR);
+
+    // w in [-1,1]: IR stereo = 0 (mono IR) at w=-1, 1 (stereo IR) at w>=0
+    const float w = audioEffectWidth * (1.0f / 100.0f);
+    const float irStereo = w < -1.0f ? 0.0f : (w > 0.0f ? 1.0f : 1.0f + w);
+
+    for (int k = 0; k < len; k++)
+    {
+        float mono = 0.5f * (rawL[k] + rawR[k]);
+        audioConvIRL[k] = mono + irStereo * (rawL[k] - mono);
+        audioConvIRR[k] = mono + irStereo * (rawR[k] - mono);
+    }
+    audioConvIRLen = len;
+}
+
+void EmuInstance::audioSetEffect(int effect)
+{
+    audioEffect = effect;
+    audioConvHistPos = 0;
+    memset(audioConvHistL, 0, sizeof(audioConvHistL));
+    memset(audioConvHistR, 0, sizeof(audioConvHistR));
+    recomputeBlendedIR();
+}
+
+void EmuInstance::audioSetEffectWidth(int width)
+{
+    audioEffectWidth = width;
+    recomputeBlendedIR(); // no history clear — smooth transition while dragging
 }
 
 void EmuInstance::audioEnable()

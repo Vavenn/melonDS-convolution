@@ -167,9 +167,14 @@ public:
     void micStop();
     int micReadInput(melonDS::s16* data, int maxlength);
 
+    void audioSetEffect(int effect);
+    void audioSetEffectWidth(int width);
+
     QMutex renderLock;
 
 private:
+    void recomputeBlendedIR();
+
     static int lastSep(const std::string& path);
     std::string getAssetPath(bool gba, const std::string& configpath, const std::string& ext, const std::string& file);
 
@@ -347,6 +352,19 @@ private:
     //int audioInterp;
     int audioVolume;
     bool audioDSiVolumeSync;
+    int audioEffect;
+    int audioEffectWidth; // -100..100: −100=mono in/mono IR, 0=stereo, +100=mono in/stereo IR
+
+    // Convolution reverb (speaker body-IR simulation)
+    // Double-buffer technique: history stored in both [0,N) and [N,2N)
+    // so the FIR window is always contiguous -> vectorisation-friendly.
+    static constexpr int AudioConvMaxIR = 5000; // max resampled IR length
+    float audioConvIRL[AudioConvMaxIR];          // active IR, left channel
+    float audioConvIRR[AudioConvMaxIR];          // active IR, right channel
+    int   audioConvIRLen;
+    float audioConvHistL[AudioConvMaxIR * 2];   // left input history (double-buf)
+    float audioConvHistR[AudioConvMaxIR * 2];   // right input history (double-buf)
+    int   audioConvHistPos;                      // write position in [0, IRLen)
     int micInputType;
     std::string micDeviceName;
     std::string micWavPath;

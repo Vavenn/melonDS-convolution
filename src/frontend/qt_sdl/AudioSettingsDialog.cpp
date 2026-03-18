@@ -45,6 +45,8 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget* parent) : QDialog(parent), ui(
 
     oldInterp = cfg.GetInt("Audio.Interpolation");
     oldBitDepth = cfg.GetInt("Audio.BitDepth");
+    oldEffect = cfg.GetInt("Audio.Effect");
+    oldEffectWidth = cfg.GetInt("Audio.EffectWidth");
     oldVolume = instcfg.GetInt("Audio.Volume");
     oldDSiSync = instcfg.GetBool("Audio.DSiVolumeSync");
 
@@ -62,6 +64,18 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget* parent) : QDialog(parent), ui(
     ui->cbBitDepth->addItem("10-bit");
     ui->cbBitDepth->addItem("16-bit");
     ui->cbBitDepth->setCurrentIndex(oldBitDepth);
+
+    ui->cbEffect->addItem("None");
+    ui->cbEffect->addItem("Close (3DS speakers)");
+    ui->cbEffect->addItem("Far (3DS speakers)");
+    ui->cbEffect->setCurrentIndex(oldEffect);
+
+    {
+        bool state2 = ui->slEffectWidth->blockSignals(true);
+        ui->slEffectWidth->setValue(oldEffectWidth);
+        ui->slEffectWidth->blockSignals(state2);
+    }
+    ui->slEffectWidth->setEnabled(oldEffect != 0);
 
     bool state = ui->slVolume->blockSignals(true);
     ui->slVolume->setValue(oldVolume);
@@ -122,6 +136,8 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget* parent) : QDialog(parent), ui(
         ui->lblInstanceNum->setText(QString("Configuring settings for instance %1").arg(inst+1));
         ui->cbInterpolation->setEnabled(false);
         ui->cbBitDepth->setEnabled(false);
+        ui->cbEffect->setEnabled(false);
+        ui->slEffectWidth->setEnabled(false);
         for (QAbstractButton* btn : grpMicMode->buttons())
             btn->setEnabled(false);
         ui->txtMicWavPath->setEnabled(false);
@@ -180,13 +196,35 @@ void AudioSettingsDialog::on_AudioSettingsDialog_rejected()
     auto& instcfg = emuInstance->getLocalConfig();
     cfg.SetInt("Audio.Interpolation", oldInterp);
     cfg.SetInt("Audio.BitDepth", oldBitDepth);
+    cfg.SetInt("Audio.Effect", oldEffect);
+    cfg.SetInt("Audio.EffectWidth", oldEffectWidth);
     instcfg.SetInt("Audio.Volume", oldVolume);
     instcfg.SetBool("Audio.DSiVolumeSync", oldDSiSync);
 
     emit updateAudioVolume(oldVolume, oldDSiSync);
+    emuInstance->audioSetEffect(oldEffect);
+    emuInstance->audioSetEffectWidth(oldEffectWidth);
     emit updateAudioSettings();
 
     closeDlg();
+}
+
+void AudioSettingsDialog::on_cbEffect_currentIndexChanged(int idx)
+{
+    // prevent a spurious change
+    if (ui->cbEffect->count() < 3) return;
+
+    auto& cfg = emuInstance->getGlobalConfig();
+    cfg.SetInt("Audio.Effect", ui->cbEffect->currentIndex());
+    emuInstance->audioSetEffect(ui->cbEffect->currentIndex());
+    ui->slEffectWidth->setEnabled(ui->cbEffect->currentIndex() != 0);
+}
+
+void AudioSettingsDialog::on_slEffectWidth_valueChanged(int val)
+{
+    auto& cfg = emuInstance->getGlobalConfig();
+    cfg.SetInt("Audio.EffectWidth", val);
+    emuInstance->audioSetEffectWidth(val);
 }
 
 void AudioSettingsDialog::on_cbBitDepth_currentIndexChanged(int idx)

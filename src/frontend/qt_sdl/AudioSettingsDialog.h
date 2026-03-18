@@ -66,6 +66,8 @@ private slots:
 
     void on_cbInterpolation_currentIndexChanged(int idx);
     void on_cbBitDepth_currentIndexChanged(int idx);
+    void on_cbEffect_currentIndexChanged(int idx);
+    void on_slEffectWidth_valueChanged(int val);
     void on_slVolume_valueChanged(int val);
     void on_chkSyncDSiVolume_clicked(bool checked);
     void onChangeMicMode(int mode);
@@ -78,6 +80,8 @@ private:
 
     int oldInterp;
     int oldBitDepth;
+    int oldEffect;
+    int oldEffectWidth;
     int oldVolume;
     bool oldDSiSync;
     QButtonGroup* grpMicMode;

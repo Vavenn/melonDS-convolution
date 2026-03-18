@@ -69,6 +69,52 @@
          </property>
         </widget>
       </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_effect">
+        <property name="text">
+         <string>Effect:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QComboBox" name="cbEffect">
+        <property name="whatsThis">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Applies a post-processing audio effect to the output.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_effectWidth">
+        <property name="text">
+         <string>Stereo width:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QSlider" name="slEffectWidth">
+        <property name="whatsThis">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls the stereo character of the speaker IR.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;\u22121 (left)&lt;/b&gt;: mono input through mono IR &amp;mdash; most collapsed&lt;/li&gt;&lt;li&gt;&lt;b&gt;0 (centre)&lt;/b&gt;: stereo input through stereo IR &amp;mdash; natural&lt;/li&gt;&lt;li&gt;&lt;b&gt;+1 (right)&lt;/b&gt;: mono input through stereo IR &amp;mdash; widest spatial spread&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="minimum">
+         <number>-100</number>
+        </property>
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="pageStep">
+         <number>10</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="tickPosition">
+         <enum>QSlider::TicksBelow</enum>
+        </property>
+        <property name="tickInterval">
+         <number>100</number>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="0">
        <widget class="QLabel" name="label_2">
         <property name="text">
